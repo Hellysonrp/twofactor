@@ -1,8 +1,8 @@
-module github.com/gokyle/twofactor
+module github.com/hellysonrp/twofactor
 
-go 1.14
+go 1.15
 
 require (
-	github.com/benbjohnson/clock v0.0.0-20161215174838-7dc76406b6d3
-	rsc.io/qr v0.1.0
+	github.com/benbjohnson/clock v1.1.0
+	rsc.io/qr v0.2.0
 )
