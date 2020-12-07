@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"net/url"
+	"strings"
 
 	"rsc.io/qr"
 )
@@ -16,12 +17,12 @@ const defaultSize = 6
 
 // OATH provides a baseline structure for the two OATH algorithms.
 type OATH struct {
-	key      []byte
-	counter  uint64
-	size     int
-	hash     func() hash.Hash
-	algo     crypto.Hash
-	provider string
+	key     []byte
+	counter uint64
+	size    int
+	hash    func() hash.Hash
+	algo    crypto.Hash
+	issuer  string
 }
 
 // Size returns the output size (in characters) of the password.
@@ -41,7 +42,7 @@ func (o OATH) SetCounter(counter uint64) {
 
 // Key returns the token's secret key.
 func (o OATH) Key() []byte {
-	return o.key[:]
+	return o.key
 }
 
 // Hash returns the token's hash function.
@@ -49,9 +50,7 @@ func (o OATH) Hash() func() hash.Hash {
 	return o.hash
 }
 
-// URL constructs a URL appropriate for the token (i.e. for use in a
-// QR code).
-func (o OATH) URL(t Type, label string) string {
+func (o OATH) url(t Type, label string) url.URL {
 	secret := base32.StdEncoding.EncodeToString(o.key)
 	u := url.URL{}
 	v := url.Values{}
@@ -64,7 +63,7 @@ func (o OATH) URL(t Type, label string) string {
 	}
 	u.Path = label
 	v.Add("secret", secret)
-	if o.Counter() != 0 && t == OATH_HOTP {
+	if o.Counter() != 0 {
 		v.Add("counter", fmt.Sprintf("%d", o.Counter()))
 	}
 	if o.Size() != defaultSize {
@@ -78,12 +77,21 @@ func (o OATH) URL(t Type, label string) string {
 		v.Add("algorithm", "SHA512")
 	}
 
-	if o.provider != "" {
-		v.Add("provider", o.provider)
+	if o.issuer != "" {
+		v.Add("issuer", o.issuer)
+	} else {
+		// assumes colon is the separator
+		// TODO add %3A compatibility
+		splitLabel := strings.Split(label, ":")
+		if len(splitLabel) == 2 {
+			// first item is issuer
+			o.issuer = splitLabel[0]
+			v.Add("issuer", o.issuer)
+		}
 	}
 
 	u.RawQuery = v.Encode()
-	return u.String()
+	return u
 
 }
 
@@ -101,7 +109,7 @@ var digits = []int64{
 	10: 10000000000,
 }
 
-// The top-level type should provide a counter; for example, HOTP
+// OTP The top-level type should provide a counter; for example, HOTP
 // will provide the counter directly while TOTP will provide the
 // time-stepped counter.
 func (o OATH) OTP(counter uint64) string {
@@ -140,9 +148,8 @@ func truncate(in []byte) int64 {
 
 // QR generates a byte slice containing the a QR code encoded as a
 // PNG with level Q error correction.
-func (o OATH) QR(t Type, label string) ([]byte, error) {
-	u := o.URL(t, label)
-	code, err := qr.Encode(u, qr.Q)
+func (o OATH) qr(url string) ([]byte, error) {
+	code, err := qr.Encode(url, qr.Q)
 	if err != nil {
 		return nil, err
 	}

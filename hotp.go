@@ -43,12 +43,13 @@ func (otp *HOTP) OTP() string {
 
 // URL returns an HOTP URL (i.e. for putting in a QR code).
 func (otp *HOTP) URL(label string) string {
-	return otp.OATH.URL(otp.Type(), label)
+	u := otp.url(otp.Type(), label)
+	return u.String()
 }
 
-// SetProvider sets up the provider component of the OTP URL.
-func (otp *HOTP) SetProvider(provider string) {
-	otp.provider = provider
+// SetIssuer sets up the issuer component of the OTP URL.
+func (otp *HOTP) SetIssuer(issuer string) {
+	otp.issuer = issuer
 }
 
 // GenerateGoogleHOTP generates a new HOTP instance as used by
@@ -88,6 +89,8 @@ func hotpFromURL(u *url.URL) (*HOTP, string, error) {
 		}
 	}
 
+	// TODO issuer
+
 	key, err := base32.StdEncoding.DecodeString(Pad(secret))
 	if err != nil {
 		// assume secret isn't base32 encoded
@@ -99,5 +102,5 @@ func hotpFromURL(u *url.URL) (*HOTP, string, error) {
 
 // QR generates a new QR code for the HOTP.
 func (otp *HOTP) QR(label string) ([]byte, error) {
-	return otp.OATH.QR(otp.Type(), label)
+	return otp.qr(otp.URL(label))
 }

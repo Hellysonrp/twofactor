@@ -39,12 +39,18 @@ func (otp *TOTP) OTP() string {
 
 // URL returns a TOTP URL (i.e. for putting in a QR code).
 func (otp *TOTP) URL(label string) string {
-	return otp.OATH.URL(otp.Type(), label)
+	u := otp.url(otp.Type(), label)
+	v := u.Query()
+	if otp.step != 30 {
+		v.Add("period", strconv.FormatUint(otp.step, 10))
+	}
+	u.RawQuery = v.Encode()
+	return u.String()
 }
 
-// SetProvider sets up the provider component of the OTP URL.
-func (otp *TOTP) SetProvider(provider string) {
-	otp.provider = provider
+// SetIssuer sets up the issuer component of the OTP URL.
+func (otp *TOTP) SetIssuer(issuer string) {
+	otp.issuer = issuer
 }
 
 func (otp *TOTP) otpCounter(t uint64) uint64 {
@@ -153,6 +159,9 @@ func totpFromURL(u *url.URL) (*TOTP, string, error) {
 		}
 	}
 
+	// TODO counter
+	// TODO issuer
+
 	key, err := base32.StdEncoding.DecodeString(Pad(secret))
 	if err != nil {
 		// assume secret isn't base32 encoded
@@ -164,9 +173,10 @@ func totpFromURL(u *url.URL) (*TOTP, string, error) {
 
 // QR generates a new TOTP QR code.
 func (otp *TOTP) QR(label string) ([]byte, error) {
-	return otp.OATH.QR(otp.Type(), label)
+	return otp.qr(otp.URL(label))
 }
 
+// SetClock sets the internal clock for test purposes
 func SetClock(c clock.Clock) {
 	timeSource = c
 }
