@@ -1,4 +1,4 @@
-module github.com/hellysonrp/twofactor/v2
+module github.com/Hellysonrp/twofactor/v2
 
 go 1.15
 
